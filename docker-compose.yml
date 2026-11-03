@@ -1,0 +1,58 @@
+# collector18 — stack receive-only.
+# Evolution v2.3.7 fixada (v2.4.0+ exige servidor de licença). Postgres/Redis são
+# LOCAIS (sessão do WhatsApp do Evolution). O banco de DADOS do coletor é o Neon
+# (externo, via DATABASE_URL no .env do serviço app).
+name: collector18
+
+services:
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: collector18-evolution
+    restart: unless-stopped
+    depends_on: [evo-postgres, evo-redis]
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evo:evo@evo-postgres:5432/evolution
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evo-redis:6379
+      # fix de pareamento (versão embutida é recusada pela Meta)
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1034074495"
+      # só precisamos do evento de mensagens recebidas
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+    networks: [collector-net]
+
+  evo-postgres:
+    image: postgres:16-alpine
+    container_name: collector18-evo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evo
+      POSTGRES_PASSWORD: evo
+      POSTGRES_DB: evolution
+    volumes: [evo-pg:/var/lib/postgresql/data]
+    networks: [collector-net]
+
+  evo-redis:
+    image: redis:7-alpine
+    container_name: collector18-evo-redis
+    restart: unless-stopped
+    volumes: [evo-redis:/data]
+    networks: [collector-net]
+
+  app:
+    build: .
+    container_name: collector18-app
+    restart: unless-stopped
+    env_file: .env          # DATABASE_URL (Neon), WEBHOOK_TOKEN, OPENAI_API_KEY...
+    expose: ["8000"]        # Evolution chama http://collector18-app:8000/webhook (rede interna)
+    networks: [collector-net]
+
+networks:
+  collector-net:
+
+volumes:
+  evo-pg:
+  evo-redis:

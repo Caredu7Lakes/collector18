@@ -1,0 +1,83 @@
+"""Webhook da Evolution (messages.upsert).
+
+Frente 1 (coletor) + Frente 2 (roteamento) no mesmo handler:
+  - remote_jid termina em @g.us  → é grupo → INGERE e para. Nunca responde.
+  - qualquer outra origem (DM)   → IGNORA no v0 (collector18 não atende ninguém).
+O collector18 é receive-only: não há cliente de envio, por construção não responde grupo.
+"""
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import get_settings
+from app.db import get_session
+from app.repositories import raw_exists, save_contact, save_indication, save_raw
+from app.services import extractor, vcard
+
+router = APIRouter(tags=["webhook"])
+
+
+def _auth(authorization: str | None) -> None:
+    expected = f"Bearer {get_settings().webhook_token}"
+    if not authorization or not hmac.compare_digest(authorization, expected):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+
+def _extract_text(message: dict) -> str | None:
+    if "conversation" in message:
+        return message["conversation"]
+    ext = message.get("extendedTextMessage")
+    if ext:
+        return ext.get("text")
+    return None
+
+
+@router.post("/webhook")
+async def webhook(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    _auth(authorization)
+    body = await request.json()
+    data = body.get("data") or {}
+    key = data.get("key") or {}
+    remote_jid = key.get("remote_jid") or key.get("remoteJid") or ""
+
+    # Roteamento: só grupos. DM e fromMe são ignorados sem persistir.
+    if not remote_jid.endswith("@g.us") or key.get("fromMe"):
+        return {"status": "ignored"}
+
+    allowed = get_settings().allowed_groups
+    if allowed and remote_jid not in allowed:
+        return {"status": "ignored"}
+
+    # Idempotência: Evolution pode reentregar o mesmo evento.
+    if await raw_exists(session, key.get("id")):
+        return {"status": "duplicate"}
+
+    message = data.get("message") or {}
+    message_type = data.get("messageType") or next(iter(message), "unknown")
+
+    raw = await save_raw(
+        session,
+        wa_message_id=key.get("id"),
+        remote_jid=remote_jid,
+        from_me=bool(key.get("fromMe")),
+        message_type=message_type,
+        sender_name=data.get("pushName"),
+        payload_json=body,
+    )
+
+    if "contactMessage" in message:
+        parsed = vcard.parse_contact(message["contactMessage"], fallback_name=data.get("pushName"))
+        await save_contact(session, raw.id, parsed)
+    else:
+        text = _extract_text(message)
+        if text:
+            extracted = await extractor.extract(text)
+            await save_indication(session, raw.id, extracted)
+
+    await session.commit()
+    return {"status": "ingested", "raw_id": raw.id}
