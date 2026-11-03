@@ -5,6 +5,7 @@ A classificação SEMÂNTICA (casar com os ~3976 segmentos do Concierge) NÃO ac
 aqui — isso é trabalho do import do Moshe via casar_segmento. Aqui só extraímos o
 termo livre como o morador escreveu.
 """
+
 import json
 import re
 

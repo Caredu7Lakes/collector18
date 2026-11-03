@@ -7,9 +7,7 @@ from app.models import Contact, Indication, RawMessage
 async def raw_exists(session: AsyncSession, wa_message_id: str | None) -> bool:
     if not wa_message_id:
         return False
-    found = await session.scalar(
-        select(RawMessage.id).where(RawMessage.wa_message_id == wa_message_id)
-    )
+    found = await session.scalar(select(RawMessage.id).where(RawMessage.wa_message_id == wa_message_id))
     return found is not None
 
 

@@ -3,6 +3,7 @@
 O card traz displayName + uma string vCard. Extraímos nome, telefones, nome
 comercial (ORG) e descrição (NOTE), como no exemplo do alfaiate 'Villa Alta Costura'.
 """
+
 import re
 
 _TEL = re.compile(r"^TEL[^:]*:(.+)$", re.IGNORECASE | re.MULTILINE)

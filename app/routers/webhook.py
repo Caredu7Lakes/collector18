@@ -8,6 +8,7 @@ O collector18 é receive-only: não há cliente de envio, por construção não 
 Durabilidade: o raw é COMITADO antes de qualquer enriquecimento (vCard/LLM). Uma
 falha no enriquecimento nunca desfaz a ingestão nem força retry infinito da Evolution.
 """
+
 import hmac
 import logging
 
@@ -50,7 +51,7 @@ async def webhook(
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="invalid json")
+        raise HTTPException(status_code=400, detail="invalid json") from None
 
     data = body.get("data") or {}
     key = data.get("key") or {}

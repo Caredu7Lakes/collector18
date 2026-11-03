@@ -10,3 +10,4 @@ __pycache__/
 tests/
 *.csv
 README.md
+.ruff_cache/

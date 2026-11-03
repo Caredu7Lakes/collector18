@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -44,9 +44,9 @@ class Indication(Base):
     __tablename__ = "indications"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    provider_name: Mapped[str | None] = mapped_column(String(256))   # Contato
-    servico_termo: Mapped[str | None] = mapped_column(String(256))   # Serviço (texto livre)
-    phone: Mapped[str | None] = mapped_column(String(32))            # Telefone
+    provider_name: Mapped[str | None] = mapped_column(String(256))  # Contato
+    servico_termo: Mapped[str | None] = mapped_column(String(256))  # Serviço (texto livre)
+    phone: Mapped[str | None] = mapped_column(String(32))  # Telefone
     is_indication: Mapped[bool] = mapped_column(Boolean, default=False)
     confidence: Mapped[float | None] = mapped_column(Float)
     source_message_id: Mapped[int] = mapped_column(ForeignKey("raw_messages.id"))

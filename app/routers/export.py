@@ -4,6 +4,7 @@ Exporta no MESMO shape da planilha já importada: Contato | Serviço | Telefone.
 O Moshe consome este CSV pelo import existente (casar_segmento → concierge_prestador,
 indicado_por=NULL). Nenhum acesso ao banco do Concierge.
 """
+
 import csv
 import io
 
@@ -25,9 +26,7 @@ async def export_csv(session: AsyncSession = Depends(get_session)) -> StreamingR
     writer.writerow(["Contato", "Serviço", "Telefone"])
 
     # Indicações de texto já classificadas como indicação
-    inds = await session.scalars(
-        select(Indication).where(Indication.is_indication.is_(True))
-    )
+    inds = await session.scalars(select(Indication).where(Indication.is_indication.is_(True)))
     for i in inds:
         writer.writerow([i.provider_name or "", i.servico_termo or "", i.phone or ""])
 

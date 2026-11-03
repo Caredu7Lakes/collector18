@@ -1,0 +1,7 @@
+target-version = "py312"
+line-length = 110
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+# B008: Depends(...) em default de argumento é o idiom do FastAPI.
+ignore = ["B008"]

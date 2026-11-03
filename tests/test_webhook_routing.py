@@ -1,4 +1,5 @@
 """Garantia da invariante central: só grupo é ingerido; DM/fromMe são ignorados."""
+
 import pytest
 
 from app.routers.webhook import _extract_text
@@ -19,9 +20,9 @@ def test_extract_none_for_media():
 @pytest.mark.parametrize(
     "jid,from_me,ingest",
     [
-        ("123-456@g.us", False, True),      # grupo → ingere
+        ("123-456@g.us", False, True),  # grupo → ingere
         ("5511999999999@s.whatsapp.net", False, False),  # DM → ignora
-        ("123-456@g.us", True, False),      # fromMe → ignora
+        ("123-456@g.us", True, False),  # fromMe → ignora
     ],
 )
 def test_routing_predicate(jid, from_me, ingest):
