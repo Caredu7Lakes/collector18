@@ -4,8 +4,12 @@ Frente 1 (coletor) + Frente 2 (roteamento) no mesmo handler:
   - remote_jid termina em @g.us  → é grupo → INGERE e para. Nunca responde.
   - qualquer outra origem (DM)   → IGNORA no v0 (collector18 não atende ninguém).
 O collector18 é receive-only: não há cliente de envio, por construção não responde grupo.
+
+Durabilidade: o raw é COMITADO antes de qualquer enriquecimento (vCard/LLM). Uma
+falha no enriquecimento nunca desfaz a ingestão nem força retry infinito da Evolution.
 """
 import hmac
+import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +18,8 @@ from app.config import get_settings
 from app.db import get_session
 from app.repositories import raw_exists, save_contact, save_indication, save_raw
 from app.services import extractor, vcard
+
+logger = logging.getLogger("collector18.webhook")
 
 router = APIRouter(tags=["webhook"])
 
@@ -40,7 +46,12 @@ async def webhook(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     _auth(authorization)
-    body = await request.json()
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid json")
+
     data = body.get("data") or {}
     key = data.get("key") or {}
     remote_jid = key.get("remote_jid") or key.get("remoteJid") or ""
@@ -60,6 +71,7 @@ async def webhook(
     message = data.get("message") or {}
     message_type = data.get("messageType") or next(iter(message), "unknown")
 
+    # 1) Durabilidade: grava e COMITA o raw antes de qualquer enriquecimento.
     raw = await save_raw(
         session,
         wa_message_id=key.get("id"),
@@ -69,15 +81,22 @@ async def webhook(
         sender_name=data.get("pushName"),
         payload_json=body,
     )
+    await session.commit()  # expire_on_commit=False → raw.id sobrevive
 
-    if "contactMessage" in message:
-        parsed = vcard.parse_contact(message["contactMessage"], fallback_name=data.get("pushName"))
-        await save_contact(session, raw.id, parsed)
-    else:
-        text = _extract_text(message)
-        if text:
-            extracted = await extractor.extract(text)
-            await save_indication(session, raw.id, extracted)
+    # 2) Enriquecimento: não pode derrubar a ingestão nem gerar retry infinito.
+    try:
+        if "contactMessage" in message:
+            parsed = vcard.parse_contact(message["contactMessage"], fallback_name=data.get("pushName"))
+            await save_contact(session, raw.id, parsed)
+            await session.commit()
+        else:
+            text = _extract_text(message)
+            if text:
+                extracted = await extractor.extract(text)
+                await save_indication(session, raw.id, extracted)
+                await session.commit()
+    except Exception:
+        logger.exception("enriquecimento falhou raw_id=%s", raw.id)
+        await session.rollback()  # raw já salvo → reprocessável depois
 
-    await session.commit()
     return {"status": "ingested", "raw_id": raw.id}
