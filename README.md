@@ -26,7 +26,7 @@ aqui — é feita no import do Moshe (`casar_segmento`, match por embedding). O 
 só exporta no shape já consumido por aquele import:
 
 ```
-GET /export/indicacoes.csv   →  Contato | Serviço | Telefone
+GET /export/indicacoes.xlsx  →  Contato | Serviço | Telefone  (openpyxl, consumido pelo import do Moshe)
 ```
 
 Sem acesso cruzado a bancos.
