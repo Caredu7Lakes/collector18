@@ -40,8 +40,14 @@ pytest -q                       # testes
 ```
 
 Após subir: parear o WhatsApp (QR via API da Evolution) e registrar o webhook da
-instância apontando para `http://collector18-app:8000/webhook` com o header
-`Authorization: Bearer <WEBHOOK_TOKEN>`.
+instância (passo versionado, idempotente — não editar à mão):
+
+```bash
+docker compose exec app python -m scripts.provision_webhook
+```
+
+Registra o webhook da instância apontando para `WEBHOOK_URL` com o header
+`Authorization: Bearer <WEBHOOK_TOKEN>` e `events:[MESSAGES_UPSERT]`.
 
 ## Notas de produção
 - Neon via asyncpg: `DATABASE_URL` com `?ssl=require` (não `sslmode`/`channel_binding`).
