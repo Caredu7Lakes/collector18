@@ -13,6 +13,7 @@ import hmac
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -65,7 +66,10 @@ async def webhook(
     if allowed and remote_jid not in allowed:
         return {"status": "ignored"}
 
-    # Idempotência: Evolution pode reentregar o mesmo evento.
+    # Idempotência (fast-path): evita o enriquecimento numa reentrega óbvia. A
+    # garantia REAL é a UNIQUE(wa_message_id) no commit abaixo — este SELECT só
+    # poupa trabalho; sozinho não cobre reentrega concorrente (dois eventos
+    # passam por aqui antes de qualquer commit).
     if await raw_exists(session, key.get("id")):
         return {"status": "duplicate"}
 
@@ -73,16 +77,24 @@ async def webhook(
     message_type = data.get("messageType") or next(iter(message), "unknown")
 
     # 1) Durabilidade: grava e COMITA o raw antes de qualquer enriquecimento.
-    raw = await save_raw(
-        session,
-        wa_message_id=key.get("id"),
-        remote_jid=remote_jid,
-        from_me=bool(key.get("fromMe")),
-        message_type=message_type,
-        sender_name=data.get("pushName"),
-        payload_json=body,
-    )
-    await session.commit()  # expire_on_commit=False → raw.id sobrevive
+    #    Numa reentrega concorrente a 2ª inserção viola a UNIQUE(wa_message_id) e
+    #    vira 'duplicate' — não 500 (que faria a Evolution re-tentar em loop).
+    #    Sem key.id (wa_message_id nulo) não há colisão (NULL no UNIQUE) e a
+    #    mensagem é ingerida sem dedup: aceitável, pois o upsert real sempre traz id.
+    try:
+        raw = await save_raw(
+            session,
+            wa_message_id=key.get("id"),
+            remote_jid=remote_jid,
+            from_me=bool(key.get("fromMe")),
+            message_type=message_type,
+            sender_name=data.get("pushName"),
+            payload_json=body,
+        )
+        await session.commit()  # expire_on_commit=False → raw.id sobrevive
+    except IntegrityError:
+        await session.rollback()
+        return {"status": "duplicate"}
 
     # 2) Enriquecimento: não pode derrubar a ingestão nem gerar retry infinito.
     try:

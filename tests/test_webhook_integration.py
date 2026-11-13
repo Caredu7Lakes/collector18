@@ -7,6 +7,7 @@ enriquecimento). Repositórios e LLM são stubados; o foco é a lógica do handl
 
 import httpx
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.db import get_session
 from app.main import app
@@ -155,3 +156,18 @@ async def test_contact_message(rec):
     assert resp.json()["status"] == "ingested"
     assert recorder.saved_contact is True
     assert recorder.saved_indication is False
+
+
+async def test_duplicata_concorrente_integrityerror(rec, monkeypatch):
+    """Reentrega concorrente: a 2a insercao viola a UNIQUE -> 'duplicate', nao 500."""
+    recorder, session = rec
+
+    async def raise_conflict(_session, **kw):
+        raise IntegrityError("INSERT INTO raw_messages", {}, Exception("duplicate key"))
+
+    monkeypatch.setattr(webhook, "save_raw", raise_conflict)
+
+    resp = await _post(_text_evt(wa_id="RACE"))
+    assert resp.json()["status"] == "duplicate"
+    assert recorder.saved_indication is False  # nao chega ao enriquecimento
+    assert session.rollbacks >= 1
