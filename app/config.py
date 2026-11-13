@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Extração por LLM (opcional: sem chave, cai no fallback heurístico)
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
+    # Timeout da chamada ao LLM. O webhook é inline e a Evolution derruba a entrega
+    # em ~30s — manter folgado abaixo disso; ao estourar, cai no fallback heurístico.
+    openai_timeout_seconds: float = 15.0
 
     # JIDs dos grupos a ingerir (vazio = todos os grupos). Fora de grupo é ignorado.
     allowed_group_jids: str = ""
