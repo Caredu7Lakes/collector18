@@ -22,6 +22,11 @@ services:
       # só precisamos do evento de mensagens recebidas
       WEBHOOK_GLOBAL_ENABLED: "false"
       WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+      # persistência no Postgres do Evolution — o backfill lê daqui (findMessages).
+      # NEW_MESSAGE: mensagens novas; HISTORIC: histórico sincronizado no pareamento
+      # (exige syncFullHistory=true na instância). Sem isto, findMessages volta vazio.
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
     networks: [collector-net]
 
   evo-postgres:
