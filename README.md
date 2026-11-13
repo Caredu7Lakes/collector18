@@ -49,6 +49,16 @@ docker compose exec app python -m scripts.provision_webhook
 Registra o webhook da instância apontando para `WEBHOOK_URL` com o header
 `Authorization: Bearer <WEBHOOK_TOKEN>` e `events:[MESSAGES_UPSERT]`.
 
+## Backfill (histórico)
+
+O webhook é forward-only. Para trazer o histórico do grupo até uma data de corte (reusa o mesmo pipeline; idempotente pela `UNIQUE(wa_message_id)`):
+
+```bash
+docker compose exec app python -m scripts.backfill
+```
+
+Controlado por `BACKFILL_GROUP_JID`, `BACKFILL_SINCE`, `BACKFILL_UNTIL` no `.env`. Só alcança o que a instância Evolution já capturou — ligar o full-history sync no pareamento para histórico profundo.
+
 ## Notas de produção
 - Neon via asyncpg: `DATABASE_URL` com `?ssl=require` (não `sslmode`/`channel_binding`).
 - Evolution fixada em v2.3.7 + `CONFIG_SESSION_PHONE_VERSION` estável (pareamento).
