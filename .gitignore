@@ -7,3 +7,6 @@ __pycache__/
 .venv/
 *.csv
 .ruff_cache/
+
+# chaves SSH - nunca commitar
+*.pem
