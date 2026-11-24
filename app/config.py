@@ -26,9 +26,17 @@ class Settings(BaseSettings):
     # JIDs dos grupos a ingerir (vazio = todos os grupos). Fora de grupo é ignorado.
     allowed_group_jids: str = ""
 
+    # Retenção do raw_messages (minimização LGPD), em dias. Após a janela, o raw é
+    # expurgado por scripts/purge_raw; o derivado (contacts/indications) sobrevive
+    # (FK source_message_id = ON DELETE SET NULL). É também a janela de reprocesso.
+    raw_retention_days: int = 90
+
+
     @property
     def allowed_groups(self) -> set[str]:
         return {j.strip() for j in self.allowed_group_jids.split(",") if j.strip()}
+
+   
 
 
 @lru_cache
