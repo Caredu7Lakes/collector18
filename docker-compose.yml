@@ -4,6 +4,13 @@
 # (externo, via DATABASE_URL no .env do serviço app).
 name: collector18
 
+# Rotação de log json-file (evita encher o disco do host ao longo dos meses).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   evolution:
     image: evoapicloud/evolution-api:v2.3.7
@@ -27,6 +34,7 @@ services:
       # (exige syncFullHistory=true na instância). Sem isto, findMessages volta vazio.
       DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
       DATABASE_SAVE_DATA_HISTORIC: "true"
+    logging: *default-logging
     networks: [collector-net]
 
   evo-postgres:
@@ -38,6 +46,7 @@ services:
       POSTGRES_PASSWORD: evo
       POSTGRES_DB: evolution
     volumes: [evo-pg:/var/lib/postgresql/data]
+    logging: *default-logging
     networks: [collector-net]
 
   evo-redis:
@@ -45,6 +54,7 @@ services:
     container_name: collector18-evo-redis
     restart: unless-stopped
     volumes: [evo-redis:/data]
+    logging: *default-logging
     networks: [collector-net]
 
   app:
@@ -53,6 +63,7 @@ services:
     restart: unless-stopped
     env_file: .env          # DATABASE_URL (Neon), WEBHOOK_TOKEN, OPENAI_API_KEY...
     expose: ["8000"]        # Evolution chama http://collector18-app:8000/webhook (rede interna)
+    logging: *default-logging
     networks: [collector-net]
 
 networks:
