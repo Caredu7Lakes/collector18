@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/pre-commit-config.json
 # Barreira local (shift-left): roda antes do commit, mesma régua do CI.
 # Instalar uma vez:  pip install pre-commit  &&  pre-commit install
 repos:
