@@ -1,0 +1,14 @@
+# Barreira local (shift-left): roda antes do commit, mesma régua do CI.
+# Instalar uma vez:  pip install pre-commit  &&  pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3  # casa com o ruff pinado no requirements.txt
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
