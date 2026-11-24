@@ -3,7 +3,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.logging_config import configure_logging
 from app.routers import export, webhook
+
+configure_logging()
 
 app = FastAPI(title="collector18", version="0.1.0")
 app.include_router(webhook.router)
