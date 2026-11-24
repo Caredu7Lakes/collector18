@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # infra/bootstrap-host.sh — prepara um host Ubuntu 24.04 limpo p/ rodar o collector18.
-# Idempotente: swap e Docker so instalam se faltarem. Rodar como 'ubuntu' (usa sudo).
+# Idempotente: swap, Docker e agente SSM so instalam se faltarem. Rodar como 'ubuntu' (usa sudo).
+#
+# PRE-REQUISITO (lado AWS, uma vez por host): a instancia precisa do IAM instance
+# profile 'collector18-ssm-profile' anexado, senao o agente sobe mas nao registra no
+# SSM e o CD (deploy via SSM) nao alcanca o host:
+#   aws ec2 associate-iam-instance-profile --region us-west-2 \
+#     --instance-id <ID> --iam-instance-profile Name=collector18-ssm-profile
 set -euo pipefail
 
 SWAP_GB="${SWAP_GB:-2}"
@@ -32,6 +38,15 @@ if ! command -v docker >/dev/null 2>&1; then
   echo "Docker instalado. Rode 'newgrp docker' (ou faca logout/login) p/ usar sem sudo."
 else
   echo "docker ja instalado: $(docker --version)"
+fi
+
+echo "== Agente SSM (necessario p/ o CD alcancar o host) =="
+if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+  sudo snap install amazon-ssm-agent --classic
+  sudo snap start amazon-ssm-agent
+  echo "SSM agent instalado. Registra no SSM em ~1-2 min SE o instance profile estiver anexado."
+else
+  echo "SSM agent ja instalado: $(snap list amazon-ssm-agent | awk 'NR==2{print $2}')"
 fi
 
 echo "== Host pronto. Proximo: criar .env e 'docker compose up -d --build'. =="
