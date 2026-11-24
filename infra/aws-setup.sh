@@ -28,12 +28,14 @@ echo "== Role de deploy (GitHub OIDC -> SSM) =="
 cat > /tmp/c18-deploy-trust.json <<JSON
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"${OIDC_ARN}"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com","token.actions.githubusercontent.com:sub":"${GITHUB_SUB}"}}}]}
 JSON
-aws iam create-role --role-name collector18-github-deploy \
-  --assume-role-policy-document file:///tmp/c18-deploy-trust.json 2>/dev/null \
-  && echo "criada" \
-  || aws iam update-assume-role-policy --role-name collector18-github-deploy \
-       --policy-document file:///tmp/c18-deploy-trust.json
-
+if aws iam create-role --role-name collector18-github-deploy \
+     --assume-role-policy-document file:///tmp/c18-deploy-trust.json 2>/dev/null; then
+  echo "criada"
+else
+  aws iam update-assume-role-policy --role-name collector18-github-deploy \
+    --policy-document file:///tmp/c18-deploy-trust.json
+  echo "ja existia — trust reconciliada"
+fi
 cat > /tmp/c18-deploy-perms.json <<JSON
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ssm:SendCommand","Resource":["arn:aws:ec2:${REGION}:${ACCOUNT_ID}:instance/${INSTANCE_ID}","arn:aws:ssm:${REGION}::document/AWS-RunShellScript"]},{"Effect":"Allow","Action":["ssm:GetCommandInvocation","ssm:ListCommandInvocations"],"Resource":"*"}]}
 JSON
@@ -55,5 +57,27 @@ aws iam create-instance-profile --instance-profile-name collector18-ssm-profile 
 aws iam add-role-to-instance-profile --instance-profile-name collector18-ssm-profile \
   --role-name collector18-ssm-role 2>/dev/null \
   && echo "role adicionada ao profile" || echo "role ja no profile (ok)"
+echo "== Permissao SES na role (export diario por e-mail) =="
+cat > /tmp/c18-ses.json <<'JSON'
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ses:SendRawEmail","ses:SendEmail"],"Resource":"*"}]}
+JSON
+aws iam put-role-policy --role-name collector18-ssm-role \
+  --policy-name ses-send --policy-document file:///tmp/c18-ses.json
+echo "permissao SES anexada"
+
+echo "== IMDS hop limit = 2 (o container precisa alcancar o IMDSv2 p/ pegar a credencial do profile) =="
+aws ec2 modify-instance-metadata-options --region "${REGION}" \
+  --instance-id "${INSTANCE_ID}" --http-tokens required --http-put-response-hop-limit 2 >/dev/null
+echo "hop limit ajustado em ${INSTANCE_ID}"
+
+echo "== Identidades SES (se EXPORT_EMAIL_FROM/TO exportados no ambiente) =="
+if [ -n "${EXPORT_EMAIL_FROM:-}" ]; then
+  aws ses verify-email-identity --region "${REGION}" --email-address "${EXPORT_EMAIL_FROM}"
+  echo "verificacao enviada p/ ${EXPORT_EMAIL_FROM} (clique no link do e-mail)"
+fi
+if [ -n "${EXPORT_EMAIL_TO:-}" ] && [ "${EXPORT_EMAIL_TO:-}" != "${EXPORT_EMAIL_FROM:-}" ]; then
+  aws ses verify-email-identity --region "${REGION}" --email-address "${EXPORT_EMAIL_TO}"
+  echo "verificacao enviada p/ ${EXPORT_EMAIL_TO} (sandbox exige destinatario verificado)"
+fi
 
 echo "== Feito. Por host: anexar collector18-ssm-profile a instancia + rodar infra/bootstrap-host.sh =="

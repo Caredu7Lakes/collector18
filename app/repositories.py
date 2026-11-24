@@ -1,7 +1,23 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Contact, Indication, RawMessage
+
+
+async def indications_since(session: AsyncSession, since: datetime) -> list[Indication]:
+    """Indicações (is_indication) criadas a partir de `since` — delta do dia p/ o export diário."""
+    rows = await session.scalars(
+        select(Indication).where(Indication.is_indication.is_(True), Indication.created_at >= since)
+    )
+    return list(rows)
+
+
+async def contacts_since(session: AsyncSession, since: datetime) -> list[Contact]:
+    """Contatos (vCard) criados a partir de `since`."""
+    rows = await session.scalars(select(Contact).where(Contact.created_at >= since))
+    return list(rows)
 
 
 async def raw_exists(session: AsyncSession, wa_message_id: str | None) -> bool:
