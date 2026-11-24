@@ -31,12 +31,9 @@ class Settings(BaseSettings):
     # (FK source_message_id = ON DELETE SET NULL). É também a janela de reprocesso.
     raw_retention_days: int = 90
 
-
     @property
     def allowed_groups(self) -> set[str]:
         return {j.strip() for j in self.allowed_group_jids.split(",") if j.strip()}
-
-   
 
 
 @lru_cache

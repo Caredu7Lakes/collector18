@@ -49,6 +49,7 @@ async def _get_xlsx(session):
     finally:
         app.dependency_overrides.clear()
 
+
 async def _get_xlsx_raw(headers):
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
