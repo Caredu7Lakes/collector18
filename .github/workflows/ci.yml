@@ -2,8 +2,11 @@ name: ci
 
 on:
   push:
-    branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -20,3 +23,36 @@ jobs:
         run: ruff format --check .
       - name: Tests (pytest)
         run: pytest -q
+
+  deploy:
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/infra-collector'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configurar credenciais AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::857190081936:role/collector18-github-deploy
+          aws-region: us-west-2
+      - name: Deploy via SSM
+        run: |
+          CMD_ID=$(aws ssm send-command \
+            --region us-west-2 \
+            --instance-ids i-0620c1f128247f8e7 \
+            --document-name AWS-RunShellScript \
+            --comment "deploy collector18 ${GITHUB_SHA::7}" \
+            --parameters 'commands=["set -e","sudo -u ubuntu git -C /home/ubuntu/collector18 fetch --quiet origin feat/infra-collector","sudo -u ubuntu git -C /home/ubuntu/collector18 reset --hard origin/feat/infra-collector","bash /home/ubuntu/collector18/infra/deploy.sh"]' \
+            --query Command.CommandId --output text)
+          echo "CommandId: $CMD_ID"
+          aws ssm wait command-executed --region us-west-2 \
+            --command-id "$CMD_ID" --instance-id i-0620c1f128247f8e7 || true
+          aws ssm get-command-invocation --region us-west-2 \
+            --command-id "$CMD_ID" --instance-id i-0620c1f128247f8e7 \
+            --query "{Status:Status,Saida:StandardOutputContent,Erro:StandardErrorContent}" --output json
+          STATUS=$(aws ssm get-command-invocation --region us-west-2 \
+            --command-id "$CMD_ID" --instance-id i-0620c1f128247f8e7 \
+            --query Status --output text)
+          test "$STATUS" = "Success"
