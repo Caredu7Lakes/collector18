@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Dependências Python (requirements.txt): mantém os pins atualizados —
+  # complementa o pip-audit, que só barra o que já está vulnerável.
+  - package-ecosystem: pip
+    directory: "/"
+    target-branch: feat/infra-collector
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Versões das actions usadas nos workflows (uses: ...@vX).
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: feat/infra-collector
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
