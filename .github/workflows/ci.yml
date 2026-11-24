@@ -24,8 +24,19 @@ jobs:
       - name: Tests (pytest)
         run: pytest -q
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - name: Auditar dependências (pip-audit)
+        run: pip-audit -r requirements.txt
+
   deploy:
-    needs: quality
+    needs: [quality, audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/feat/infra-collector'
     runs-on: ubuntu-latest
     permissions:
