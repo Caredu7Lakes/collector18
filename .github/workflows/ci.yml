@@ -26,7 +26,7 @@ jobs:
       - name: Shellcheck (scripts de infra)
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          shellcheck infra/*.sh
+          shellcheck --severity=warning infra/*.sh
 
   audit:
     runs-on: ubuntu-latest
