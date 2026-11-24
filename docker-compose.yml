@@ -11,6 +11,10 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# mem_limit por serviço: teto ~2.5x o pico observado (app ~62M, evolution ~206M,
+# postgres ~99M, redis ~6M). Limita o raio do OOM no host de ~1.8GB — o killer mira
+# o container que estourar, não um saudável qualquer.
+
 services:
   evolution:
     image: evoapicloud/evolution-api:v2.3.7
@@ -34,6 +38,7 @@ services:
       # (exige syncFullHistory=true na instância). Sem isto, findMessages volta vazio.
       DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
       DATABASE_SAVE_DATA_HISTORIC: "true"
+    mem_limit: 512m
     logging: *default-logging
     networks: [collector-net]
 
@@ -46,6 +51,7 @@ services:
       POSTGRES_PASSWORD: evo
       POSTGRES_DB: evolution
     volumes: [evo-pg:/var/lib/postgresql/data]
+    mem_limit: 256m
     logging: *default-logging
     networks: [collector-net]
 
@@ -54,6 +60,7 @@ services:
     container_name: collector18-evo-redis
     restart: unless-stopped
     volumes: [evo-redis:/data]
+    mem_limit: 128m
     logging: *default-logging
     networks: [collector-net]
 
@@ -63,6 +70,7 @@ services:
     restart: unless-stopped
     env_file: .env          # DATABASE_URL (Neon), WEBHOOK_TOKEN, OPENAI_API_KEY...
     expose: ["8000"]        # Evolution chama http://collector18-app:8000/webhook (rede interna)
+    mem_limit: 256m
     logging: *default-logging
     networks: [collector-net]
 
