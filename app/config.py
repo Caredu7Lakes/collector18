@@ -12,6 +12,9 @@ class Settings(BaseSettings):
 
     # Token que o webhook da Evolution envia no header Authorization: Bearer <...>
     webhook_token: str
+    # Token do endpoint de export (handoff XLSX). SEPARADO do webhook_token por
+    # menor privilégio: o segredo da Evolution não deve habilitar exportar PII.
+    export_token: str
 
     # Extração por LLM (opcional: sem chave, cai no fallback heurístico)
     openai_api_key: str | None = None

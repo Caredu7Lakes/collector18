@@ -16,13 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Contact, Indication
+from app.security import require_export_auth
 
 router = APIRouter(tags=["export"])
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-@router.get("/export/indicacoes.xlsx")
+@router.get("/export/indicacoes.xlsx", dependencies=[Depends(require_export_auth)])
 async def export_xlsx(session: AsyncSession = Depends(get_session)) -> StreamingResponse:
     wb = Workbook()
     ws = wb.active

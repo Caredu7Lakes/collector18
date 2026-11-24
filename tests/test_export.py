@@ -49,6 +49,21 @@ async def _get_xlsx(session):
     finally:
         app.dependency_overrides.clear()
 
+async def _get_xlsx_raw(headers):
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get("/export/indicacoes.xlsx", headers=headers)
+
+
+async def test_export_sem_auth_401():
+    resp = await _get_xlsx_raw({})
+    assert resp.status_code == 401
+
+
+async def test_export_auth_errado_401():
+    resp = await _get_xlsx_raw({"Authorization": "Bearer errado"})
+    assert resp.status_code == 401
+
 
 async def test_export_xlsx_shape():
     inds = [SimpleNamespace(provider_name="Alfaiate João", servico_termo="alfaiate", phone="5511999998888")]

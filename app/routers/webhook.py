@@ -12,27 +12,21 @@ A ingestão de um evento vive em ingest_data(), reusada pelo webhook (fluxo novo
 pelo backfill (histórico via findMessages) — mesmo pipeline, uma lógica só.
 """
 
-import hmac
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db import get_session
 from app.repositories import raw_exists, save_contact, save_indication, save_raw
+from app.security import require_webhook_auth
 from app.services import extractor, vcard
 
 logger = logging.getLogger("collector18.webhook")
 
 router = APIRouter(tags=["webhook"])
-
-
-def _auth(authorization: str | None) -> None:
-    expected = f"Bearer {get_settings().webhook_token}"
-    if not authorization or not hmac.compare_digest(authorization, expected):
-        raise HTTPException(status_code=401, detail="unauthorized")
 
 
 def _extract_text(message: dict) -> str | None:
@@ -110,14 +104,11 @@ async def ingest_data(session: AsyncSession, data: dict, raw_payload: dict) -> d
     return {"status": "ingested", "raw_id": raw.id}
 
 
-@router.post("/webhook")
+@router.post("/webhook", dependencies=[Depends(require_webhook_auth)])
 async def webhook(
     request: Request,
-    authorization: str | None = Header(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    _auth(authorization)
-
     try:
         body = await request.json()
     except Exception:

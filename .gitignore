@@ -10,3 +10,7 @@ __pycache__/
 
 # chaves SSH - nunca commitar
 *.pem
+
+# artefatos de runtime - nunca versionar (PII / sessao)
+*.xlsx
+collector-qr.png
