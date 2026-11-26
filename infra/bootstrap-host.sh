@@ -49,11 +49,4 @@ else
   echo "SSM agent ja instalado: $(snap list amazon-ssm-agent | awk 'NR==2{print $2}')"
 fi
 
-echo "== Logs do cron (dono ${USER}; /var/log e root-only — sem isto o redirect do cron falha e o job nao roda) =="
-for f in collector18-daily collector18-purge; do
-  sudo touch "/var/log/${f}.log"
-  sudo chown "${USER}:${USER}" "/var/log/${f}.log"
-done
-echo "logs do cron prontos (dono ${USER})"
-
 echo "== Host pronto. Proximo: criar .env e 'docker compose up -d --build'. =="
