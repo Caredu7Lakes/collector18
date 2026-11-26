@@ -74,6 +74,18 @@ services:
     logging: *default-logging
     networks: [collector-net]
 
+  scheduler:
+    image: collector18-app        # reaproveita a imagem buildada pelo serviço 'app'
+    container_name: collector18-scheduler
+    restart: unless-stopped
+    env_file: .env                # mesmas credenciais do app (Neon, OpenAI, SES)
+    command: ["python", "-m", "scripts.scheduler"]
+    healthcheck:
+      disable: true               # não é servidor HTTP; o HEALTHCHECK da imagem bate em :8000
+    mem_limit: 128m
+    logging: *default-logging
+    networks: [collector-net]
+
 networks:
   collector-net:
 

@@ -7,5 +7,5 @@ set -euo pipefail
 
 cd /home/ubuntu/collector18
 
-docker compose up -d --build app
+docker compose up -d --build app scheduler
 docker compose exec -T app alembic upgrade head

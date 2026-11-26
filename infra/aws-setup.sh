@@ -70,14 +70,23 @@ aws ec2 modify-instance-metadata-options --region "${REGION}" \
   --instance-id "${INSTANCE_ID}" --http-tokens required --http-put-response-hop-limit 2 >/dev/null
 echo "hop limit ajustado em ${INSTANCE_ID}"
 
-echo "== Identidades SES (se EXPORT_EMAIL_FROM/TO exportados no ambiente) =="
-if [ -n "${EXPORT_EMAIL_FROM:-}" ]; then
-  aws ses verify-email-identity --region "${REGION}" --email-address "${EXPORT_EMAIL_FROM}"
-  echo "verificacao enviada p/ ${EXPORT_EMAIL_FROM} (clique no link do e-mail)"
+echo "== Identidade de DOMINIO no SES + Easy DKIM (remetente do export diario) =="
+# O remetente tem que estar num DOMINIO verificado com DKIM; o alinhamento DKIM/DMARC
+# e o que faz iCloud/Gmail aceitarem. Dominio vem do EXPORT_EMAIL_FROM (ou exporte SES_DOMAIN).
+SES_DOMAIN="${SES_DOMAIN:-${EXPORT_EMAIL_FROM##*@}}"
+if [ -n "${SES_DOMAIN:-}" ]; then
+  aws sesv2 create-email-identity --region "${REGION}" --email-identity "${SES_DOMAIN}" 2>/dev/null \
+    && echo "identidade ${SES_DOMAIN} criada (Easy DKIM on)" || echo "identidade ${SES_DOMAIN} ja existe (ok)"
+  echo "-- Adicione estes 3 CNAMEs no DNS do ${SES_DOMAIN} (fora da AWS, ex.: cPanel) --"
+  aws sesv2 get-email-identity --region "${REGION}" --email-identity "${SES_DOMAIN}" \
+    --query "DkimAttributes.Tokens" --output text | tr '\t' '\n' | while read -r t; do
+    echo "  ${t}._domainkey.${SES_DOMAIN}  CNAME  ${t}.dkim.amazonses.com"
+  done
 fi
-if [ -n "${EXPORT_EMAIL_TO:-}" ] && [ "${EXPORT_EMAIL_TO:-}" != "${EXPORT_EMAIL_FROM:-}" ]; then
+# Em sandbox o destinatario precisa ser verificado; fora do sandbox, nao faz mal.
+if [ -n "${EXPORT_EMAIL_TO:-}" ]; then
   aws ses verify-email-identity --region "${REGION}" --email-address "${EXPORT_EMAIL_TO}"
-  echo "verificacao enviada p/ ${EXPORT_EMAIL_TO} (sandbox exige destinatario verificado)"
+  echo "verificacao enviada p/ ${EXPORT_EMAIL_TO} (necessaria so em sandbox)"
 fi
 
 echo "== Feito. Por host: anexar collector18-ssm-profile a instancia + rodar infra/bootstrap-host.sh =="
